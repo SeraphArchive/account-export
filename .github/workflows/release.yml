@@ -22,14 +22,17 @@ jobs:
       - name: Set up Rust and LLVM
         shell: pwsh
         run: |
-          rustup toolchain install stable --profile minimal --target x86_64-pc-windows-msvc
-          rustup default stable
+          rustup toolchain install --no-self-update --profile minimal --component rustfmt --target x86_64-pc-windows-msvc
+          if ($LASTEXITCODE -ne 0) { throw 'Rust toolchain setup failed.' }
           Join-Path $env:ProgramFiles 'LLVM/bin' >> $env:GITHUB_PATH
       - name: Build, test and package
         shell: pwsh
         run: |
-          $version = $env:RELEASE_TAG -replace '^account-export-v', ''
-          ./build.ps1 -Version $version
+          $version = [regex]::Match((Get-Content Cargo.toml -Raw), '(?m)^version\s*=\s*"([^"]+)"').Groups[1].Value
+          if (-not $version -or $env:RELEASE_TAG -ne "account-export-v$version") {
+            throw 'Release tag must match the Cargo.toml package version.'
+          }
+          ./build.ps1
       - name: Attach assets to published release
         shell: pwsh
         env:
@@ -37,7 +40,7 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           $version = $env:RELEASE_TAG -replace '^account-export-v', ''
-          $assets = @(Get-ChildItem "dist/releases/$version" -File | ForEach-Object FullName)
-          if ($assets.Count -eq 0) { throw 'No release assets were built.' }
-          gh release upload $env:RELEASE_TAG @assets --clobber
+          $asset = "dist/hbr-account-export-v$version-win-x64.zip"
+          if (-not (Test-Path -LiteralPath $asset -PathType Leaf)) { throw 'Release ZIP was not built.' }
+          gh release upload $env:RELEASE_TAG $asset --clobber
           if ($LASTEXITCODE -ne 0) { throw 'Release asset upload failed.' }
