@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Rust and LLVM
+        shell: pwsh
+        run: |
+          rustup toolchain install stable --profile minimal --target x86_64-pc-windows-msvc
+          rustup default stable
+          Join-Path $env:ProgramFiles 'LLVM/bin' >> $env:GITHUB_PATH
+      - name: Build, test and package
+        shell: pwsh
+        run: |
+          $version = [regex]::Match((Get-Content Cargo.toml -Raw), '(?m)^version\s*=\s*"([^"]+)"').Groups[1].Value
+          ./build.ps1 -Version $version
+      - uses: actions/upload-artifact@v4
+        with:
+          name: account-export-win-x64
+          path: dist/releases/*/*
+          if-no-files-found: error

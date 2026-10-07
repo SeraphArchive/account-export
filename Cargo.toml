@@ -1,0 +1,36 @@
+[package]
+name = "hbr-account-export"
+version = "0.1.0"
+edition = "2021"
+publish = false
+license = "MIT"
+description = "Standalone full account exporter for Heaven Burns Red"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[[bin]]
+name = "startup-smoke"
+path = "tools/startup-smoke.rs"
+test = false
+
+[dependencies]
+anyhow = "1"
+serde_json = { version = "1", features = ["arbitrary_precision"] }
+
+[target.'cfg(windows)'.dependencies]
+retour = "0.3"
+base64 = "0.22"
+windows-sys = { version = "0.59", features = [
+    "Win32_Foundation", "Win32_Security", "Win32_Storage_FileSystem",
+    "Win32_System_LibraryLoader", "Win32_System_SystemInformation",
+    "Win32_System_SystemServices", "Win32_System_Threading",
+    "Win32_System_Environment", "Win32_UI_WindowsAndMessaging",
+] }
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "unwind"
+strip = true

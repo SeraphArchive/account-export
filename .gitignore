@@ -1,0 +1,10 @@
+/target/
+/dist/
+/exports/
+/logs/
+*.jsonl
+*.har
+*.dll
+*.pdb
+*.part
+*.log

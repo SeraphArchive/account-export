@@ -1,0 +1,43 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  release-assets:
+    if: startsWith(github.event.release.tag_name, 'account-export-v')
+    runs-on: windows-2022
+    permissions:
+      contents: write
+    env:
+      RELEASE_TAG: ${{ github.event.release.tag_name }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
+      - name: Set up Rust and LLVM
+        shell: pwsh
+        run: |
+          rustup toolchain install stable --profile minimal --target x86_64-pc-windows-msvc
+          rustup default stable
+          Join-Path $env:ProgramFiles 'LLVM/bin' >> $env:GITHUB_PATH
+      - name: Build, test and package
+        shell: pwsh
+        run: |
+          $version = $env:RELEASE_TAG -replace '^account-export-v', ''
+          ./build.ps1 -Version $version
+      - name: Attach assets to published release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          $version = $env:RELEASE_TAG -replace '^account-export-v', ''
+          $assets = @(Get-ChildItem "dist/releases/$version" -File | ForEach-Object FullName)
+          if ($assets.Count -eq 0) { throw 'No release assets were built.' }
+          gh release upload $env:RELEASE_TAG @assets --clobber
+          if ($LASTEXITCODE -ne 0) { throw 'Release asset upload failed.' }
